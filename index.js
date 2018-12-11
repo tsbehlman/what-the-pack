@@ -19,7 +19,7 @@ class Iterator {
 
 let allocator = new Allocator();
 const iterator = new Iterator();
-const dictionary = {};
+const dictionary = new Map();
 let dictionaryEnabled = false;
 let dictionaryOffset = -33;
 /**
@@ -33,8 +33,8 @@ class MessagePack {
     dictionaryEnabled = true;
     args.forEach((item) => {
       dictionaryOffset += 1;
-      dictionary[dictionaryOffset] = item;
-      dictionary[item] = dictionaryOffset;
+      dictionary.set(item, dictionaryOffset);
+      dictionary.set(dictionaryOffset, item);
     });
   }
   static get dictionary () {
@@ -321,7 +321,7 @@ class MessagePack {
           }
           if (dictionaryEnabled === true) {
             for (let i = 0; i < length; i += 1) {
-              MessagePack.encode(dictionary[keys[i]] || keys[i], true);
+              MessagePack.encode(dictionary.get(keys[i]) || keys[i], true);
               MessagePack.encode(value[keys[i]], true);
             }
           } else {
@@ -372,7 +372,7 @@ class MessagePack {
         if (dictionaryEnabled === true) {
           for (let i = 0, key; i < length; i++) {
             key = MessagePack.decode(undefined, true);
-            value[dictionary[key] || key] = MessagePack.decode(undefined, true);
+            value[dictionary.get(key) || key] = MessagePack.decode(undefined, true);
           }
         } else {
           for (let i = 0; i < length; i++) {
@@ -520,7 +520,7 @@ class MessagePack {
           if (dictionaryEnabled === true) {
             for (let i = 0, key; i < length; i++) {
               key = MessagePack.decode(undefined, true);
-              value[dictionary[key] || key] = MessagePack.decode(undefined, true);
+              value[dictionary.get(key) || key] = MessagePack.decode(undefined, true);
             }
           } else {
             for (let i = 0; i < length; i++) {
@@ -535,7 +535,7 @@ class MessagePack {
           if (dictionaryEnabled === true) {
             for (let i = 0, key; i < length; i++) {
               key = MessagePack.decode(undefined, true);
-              value[dictionary[key] || key] = MessagePack.decode(undefined, true);
+              value[dictionary.get(key) || key] = MessagePack.decode(undefined, true);
             }
           } else {
             for (let i = 0; i < length; i++) {
