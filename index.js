@@ -1,7 +1,3 @@
-/* eslint-disable no-console */
-
-const pb = require('pretty-bytes');
-
 class Allocator {
   constructor (length) {
     this.buffer = Buffer.allocUnsafe(length || Buffer.poolSize).fill(0);
@@ -45,7 +41,6 @@ class MessagePack {
     return dictionary;
   }
   static reallocate (length) {
-    MessagePack.log('MessagePack: Setting buffer limit to', pb(length || Buffer.poolSize));
     allocator = new Allocator(length);
   }
   static get allocator () {

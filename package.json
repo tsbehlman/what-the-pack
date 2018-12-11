@@ -6,9 +6,6 @@
   "repository": "git@github.com:davalapar/what-the-pack.git",
   "author": "davalapar <davalapar@gmail.com>",
   "license": "MIT",
-  "dependencies": {
-    "pretty-bytes": "^5.1.0"
-  },
   "devDependencies": {
     "benchmark": "^2.1.4",
     "jest": "^23.6.0",
