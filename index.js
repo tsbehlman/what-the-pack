@@ -54,9 +54,7 @@ class MessagePack {
     let length = 0;
     switch (typeof value) {
       case 'string':
-        length = Buffer.byteLength(value);
-        if (length < 32) { // < 32, fixstr
-          length = 0;
+        if (value.length < 16) {
           for (let i = 0, c = 0, l = value.length; i < l; i += 1) {
             c = value.charCodeAt(i);
             if (c < 128) {
@@ -70,6 +68,11 @@ class MessagePack {
               length += 4;
             }
           }
+        }
+        else {
+          length = Buffer.byteLength(value);
+        }
+        if (length < 32) { // < 32, fixstr
           allocator.buffer[allocator.offset += 1] = length | 160;
           for (let i = 0, c = 0, l = value.length; i < l; i += 1) {
             c = value.charCodeAt(i);
