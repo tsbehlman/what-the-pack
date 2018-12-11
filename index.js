@@ -253,19 +253,10 @@ class MessagePack {
         if (value instanceof ArrayBuffer) { // arraybuffer to buffer
           value = Buffer.from(value);
         }
-        if (
+        else if (
           value instanceof Buffer === false &&
-          (
-            value instanceof Int8Array
-            || value instanceof Int16Array
-            || value instanceof Int32Array
-            || value instanceof Uint8Array
-            || value instanceof Uint8ClampedArray
-            || value instanceof Uint16Array
-            || value instanceof Uint32Array
-            || value instanceof Float32Array
-            || value instanceof Float64Array
-          )
+          ArrayBuffer.isView( value ) &&
+          value instanceof DataView  === false
         ) {
           let temp = Buffer.from(value.buffer);
           if (value.byteLength !== value.buffer.byteLength) {
