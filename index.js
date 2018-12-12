@@ -20,7 +20,6 @@ class Iterator {
 let allocator = new Allocator();
 const iterator = new Iterator();
 const dictionary = new Map();
-let dictionaryEnabled = false;
 let dictionaryOffset = -33;
 /**
  * Why -33:
@@ -30,8 +29,7 @@ let dictionaryOffset = -33;
  */
 class MessagePack {
   static register (...args) {
-    dictionaryEnabled = true;
-    args.forEach((item) => {
+    args.forEach(item => {
       dictionaryOffset += 1;
       dictionary.set(item, dictionaryOffset);
       dictionary.set(dictionaryOffset, item);
@@ -55,7 +53,7 @@ class MessagePack {
     switch (typeof value) {
       case 'string':
         if (value.length < 16) {
-          for (let i = 0, c = 0, l = value.length; i < l; i += 1) {
+          for (let i = 0, c = 0, l = value.length; i < l; i++) {
             c = value.charCodeAt(i);
             if (c < 128) {
               length += 1;
@@ -64,7 +62,7 @@ class MessagePack {
             } else if (c < 55296 || c >= 57344) {
               length += 3;
             } else {
-              i += 1;
+              i++;
               length += 4;
             }
           }
@@ -74,24 +72,24 @@ class MessagePack {
         }
         if (length < 32) { // < 32, fixstr
           allocator.buffer[allocator.offset += 1] = length | 160;
-          for (let i = 0, c = 0, l = value.length; i < l; i += 1) {
+          for (let i = 0, c = 0, l = value.length; i < l; i++) {
             c = value.charCodeAt(i);
-            if (c < 128) {
+            if (c < 0x80) {
               allocator.buffer[allocator.offset += 1] = c;
-            } else if (c < 1280) {
-              allocator.buffer[allocator.offset += 1] = 192 | (c >> 6);
-              allocator.buffer[allocator.offset += 1] = 128 | (c & 63);
-            } else if (c < 55296 || c >= 57344) {
-              allocator.buffer[allocator.offset += 1] = 224 | (c >> 12);
-              allocator.buffer[allocator.offset += 1] = 128 | (c >> 6) & 63;
-              allocator.buffer[allocator.offset += 1] = 128 | (c & 63);
+            } else if (c < 0x500) {
+              allocator.buffer[allocator.offset += 1] = 0xC0 | c >> 6        ;
+              allocator.buffer[allocator.offset += 1] = 0x80 | c       & 0x3F;
+            } else if (c < 0xD800 || c >= 0xE000) {
+              allocator.buffer[allocator.offset += 1] = 0xE0 | c >> 12       ;
+              allocator.buffer[allocator.offset += 1] = 0x80 | c >> 6  & 0x3F;
+              allocator.buffer[allocator.offset += 1] = 0x80 | c       & 0x3F;
             } else {
-              i += 1;
-              c = 65536 + (((c & 1023) << 10) | (value.charCodeAt(i) & 1023));
-              allocator.buffer[allocator.offset += 1] = 240 | (c >> 18);
-              allocator.buffer[allocator.offset += 1] = 128 | (c >> 12) & 63;
-              allocator.buffer[allocator.offset += 1] = 128 | (c >> 6) & 63;
-              allocator.buffer[allocator.offset += 1] = 128 | (c & 63);
+              i++;
+              c = 0x10000 ^ (((c & 0x3FF) << 10) | (value.charCodeAt(i) & 0x3FF));
+              allocator.buffer[allocator.offset += 1] = 0xF0 | c >> 18       ;
+              allocator.buffer[allocator.offset += 1] = 0x80 | c >> 12 & 0x3F;
+              allocator.buffer[allocator.offset += 1] = 0x80 | c >> 6  & 0x3F;
+              allocator.buffer[allocator.offset += 1] = 0x80 | c       & 0x3F;
             }
           }
         } else if (length < 256) { // str8
@@ -118,8 +116,8 @@ class MessagePack {
         }
         break;
       case 'number':
-        if (Number.isFinite(value) === false) {
-          if (Number.isNaN(value) === true) { // NaN, fixext 1, type = 0, data = 1
+        if (!Number.isFinite(value)) {
+          if (Number.isNaN(value)) { // NaN, fixext 1, type = 0, data = 1
             allocator.buffer[allocator.offset += 1] = 212;
             allocator.buffer[allocator.offset += 1] = 0;
             allocator.buffer[allocator.offset += 1] = 1;
@@ -176,7 +174,7 @@ class MessagePack {
             break;
           }
           // uint 64
-          let hi = (value / Math.pow(2, 32)) >> 0, lo = value >>> 0;
+          let hi = (value / 4294967296) >> 0, lo = value >>> 0;
           allocator.buffer[allocator.offset += 1] = 207;
           allocator.buffer[allocator.offset += 1] = hi >> 24;
           allocator.buffer[allocator.offset += 1] = hi >> 16;
@@ -211,7 +209,7 @@ class MessagePack {
             break;
           }
           // int 64
-          let hi = Math.floor(value / Math.pow(2, 32)), lo = value >>> 0;
+          let hi = Math.floor(value / 4294967296), lo = value >>> 0;
           allocator.buffer[allocator.offset += 1] = 211;
           allocator.buffer[allocator.offset += 1] = hi >> 24;
           allocator.buffer[allocator.offset += 1] = hi >> 16;
@@ -228,7 +226,7 @@ class MessagePack {
           allocator.buffer[allocator.offset += 1] = 192;
           break;
         }
-        if (Array.isArray(value) === true) {
+        if (Array.isArray(value)) {
           length = value.length;
           if (length < 16) { // fixarray
             allocator.buffer[allocator.offset += 1] = length | 144;
@@ -245,7 +243,7 @@ class MessagePack {
           } else {
             throw new Error('Array too large');
           }
-          for (let i = 0; i < length; i += 1) {
+          for (let i = 0; i < length; i++) {
             MessagePack.encode(value[i], true);
           }
           break;
@@ -254,9 +252,9 @@ class MessagePack {
           value = Buffer.from(value);
         }
         else if (
-          value instanceof Buffer === false &&
+          !(value instanceof Buffer) &&
           ArrayBuffer.isView( value ) &&
-          value instanceof DataView  === false
+          !(value instanceof DataView)
         ) {
           let temp = Buffer.from(value.buffer);
           if (value.byteLength !== value.buffer.byteLength) {
@@ -313,13 +311,13 @@ class MessagePack {
           } else {
             throw new Error('Object too large');
           }
-          if (dictionaryEnabled === true) {
-            for (let i = 0; i < length; i += 1) {
+          if (dictionary.size > 0) {
+            for (let i = 0; i < length; i++) {
               MessagePack.encode(dictionary.get(keys[i]) || keys[i], true);
               MessagePack.encode(value[keys[i]], true);
             }
           } else {
-            for (let i = 0; i < length; i += 1) {
+            for (let i = 0; i < length; i++) {
               MessagePack.encode(keys[i], true);
               MessagePack.encode(value[keys[i]], true);
             }
@@ -354,16 +352,17 @@ class MessagePack {
       iterator.buffer = buffer;
       iterator.offset = 0;
     }
-    if (iterator.buffer[iterator.offset] < 192) {
-      if (iterator.buffer[iterator.offset] < 128) { // positive fixint
-        value = iterator.buffer[iterator.offset];
+    const firstByte = iterator.buffer[iterator.offset];
+    if (firstByte < 192) {
+      if (firstByte < 128) { // positive fixint
+        value = firstByte;
         iterator.offset += 1;
         return value;
-      } else if (iterator.buffer[iterator.offset] < 144) { // fixmap
-        length = iterator.buffer[iterator.offset] & 31;
+      } else if (firstByte < 144) { // fixmap
+        length = firstByte & 31;
         value = {};
         iterator.offset += 1;
-        if (dictionaryEnabled === true) {
+        if (dictionary.size > 0) {
           for (let i = 0, key; i < length; i++) {
             key = MessagePack.decode(undefined, true);
             value[dictionary.get(key) || key] = MessagePack.decode(undefined, true);
@@ -374,27 +373,27 @@ class MessagePack {
           }
         }
         return value;
-      } else if (iterator.buffer[iterator.offset] < 160) { // fixarray
-        length = iterator.buffer[iterator.offset] & 15;
+      } else if (firstByte < 160) { // fixarray
+        length = firstByte & 15;
         iterator.offset += 1;
         value = new Array(length);
-        for (let i = 0; i < length; i += 1) {
+        for (let i = 0; i < length; i++) {
           value[i] = MessagePack.decode(undefined, true);
         }
         return value;
       } else { // fixstr
-        length = iterator.buffer[iterator.offset] & 31;
+        length = firstByte & 31;
         iterator.offset += 1;
         value = iterator.buffer.toString('utf8', iterator.offset, iterator.offset + length);
         iterator.offset += length;
         return value;
       }
-    } else if (iterator.buffer[iterator.offset] > 223) { // negative fixint
-      value = (255 - iterator.buffer[iterator.offset] + 1) * -1;
+    } else if (firstByte > 223) { // negative fixint
+      value = firstByte - 256;
       iterator.offset += 1;
       return value;
     } else {
-      switch (iterator.buffer[iterator.offset]) {
+      switch (firstByte) {
         case 202: // float 32
           value = iterator.buffer.readFloatBE(iterator.offset += 1);
           iterator.offset += 4;
@@ -416,7 +415,7 @@ class MessagePack {
           iterator.offset += 4;
           return value;
         case 207: // uint 64
-          value = ( iterator.buffer.readUInt32BE(iterator.offset += 1) * Math.pow(2, 32) ) + iterator.buffer.readUInt32BE(iterator.offset += 4);
+          value = ( iterator.buffer.readUInt32BE(iterator.offset += 1) * 4294967296 ) + iterator.buffer.readUInt32BE(iterator.offset += 4);
           iterator.offset += 4;
           return value;
         case 208: // int 8
@@ -432,10 +431,9 @@ class MessagePack {
           iterator.offset += 4;
           return value;
         case 211: // int 64
-          value = ( iterator.buffer.readInt32BE(iterator.offset += 1) * Math.pow(2, 32) ) + iterator.buffer.readUInt32BE(iterator.offset += 4);
+          value = ( iterator.buffer.readInt32BE(iterator.offset += 1) * 4294967296 ) + iterator.buffer.readUInt32BE(iterator.offset += 4);
           iterator.offset += 4;
           return value;
-
         case 217: // str 8
           length = iterator.buffer.readUInt8(iterator.offset += 1);
           iterator.offset += 1;
@@ -454,29 +452,26 @@ class MessagePack {
           value = iterator.buffer.toString('utf8', iterator.offset, iterator.offset + length);
           iterator.offset += length;
           return value;
-
         case 212: // fixext 1
-          switch ( iterator.buffer.readInt8(iterator.offset += 1) ) { // fixext 1, type = ?
-            case 0:
-              switch ( iterator.buffer.readInt8(iterator.offset += 1) ) { // fixext 1, type = 0, data = ?
-                case 0: // undefined, fixext 1, type = 0, data = 0
-                  value = undefined;
-                  iterator.offset += 1;
-                  return value;
-                case 1: // NaN, fixext 1, type = 0, data = 1
-                  value = NaN;
-                  iterator.offset += 1;
-                  return value;
-                case 2: // +Infinity, fixext 1, type = 0, data = 2
-                  value = Infinity;
-                  iterator.offset += 1;
-                  return value;
-                case 3: // -Infinity, fixext 1, type = 0, data = 3
-                  value = -Infinity;
-                  iterator.offset += 1;
-                  return value;
-              }
-            break;
+          if (iterator.buffer.readInt8(iterator.offset += 1) === 0) { // fixext 1, type = 0, data = ?
+            switch ( iterator.buffer.readInt8(iterator.offset += 1) ) { 
+              case 0: // undefined, fixext 1, type = 0, data = 0
+                value = undefined;
+                iterator.offset += 1;
+                return value;
+              case 1: // NaN, fixext 1, type = 0, data = 1
+                value = NaN;
+                iterator.offset += 1;
+                return value;
+              case 2: // +Infinity, fixext 1, type = 0, data = 2
+                value = Infinity;
+                iterator.offset += 1;
+                return value;
+              case 3: // -Infinity, fixext 1, type = 0, data = 3
+                value = -Infinity;
+                iterator.offset += 1;
+                return value;
+            }
           }
           break;
         case 192: // nil
@@ -495,7 +490,7 @@ class MessagePack {
           length = iterator.buffer.readUInt16BE(iterator.offset += 1);
           iterator.offset += 2;
           value = new Array(length);
-          for (let i = 0; i < length; i += 1) {
+          for (let i = 0; i < length; i++) {
             value[i] = MessagePack.decode(undefined, true);
           }
           return value;
@@ -503,7 +498,7 @@ class MessagePack {
           length = iterator.buffer.readUInt32BE(iterator.offset += 1);
           iterator.offset += 4;
           value = new Array(length);
-          for (let i = 0; i < length; i += 1) {
+          for (let i = 0; i < length; i++) {
             value[i] = MessagePack.decode(undefined, true);
           }
           return value;
@@ -511,7 +506,7 @@ class MessagePack {
           length = iterator.buffer.readUInt16BE(iterator.offset += 1);
           value = {};
           iterator.offset += 2;
-          if (dictionaryEnabled === true) {
+          if (dictionary.size > 0) {
             for (let i = 0, key; i < length; i++) {
               key = MessagePack.decode(undefined, true);
               value[dictionary.get(key) || key] = MessagePack.decode(undefined, true);
@@ -526,7 +521,7 @@ class MessagePack {
           length = iterator.buffer.readUInt32BE(iterator.offset += 1);
           value = {};
           iterator.offset += 4;
-          if (dictionaryEnabled === true) {
+          if (dictionary.size > 0) {
             for (let i = 0, key; i < length; i++) {
               key = MessagePack.decode(undefined, true);
               value[dictionary.get(key) || key] = MessagePack.decode(undefined, true);
