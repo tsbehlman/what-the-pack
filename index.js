@@ -355,8 +355,7 @@ class MessagePack {
     const firstByte = iterator.buffer[iterator.offset++];
     if (firstByte < 192) {
       if (firstByte < 128) { // positive fixint
-        value = firstByte;
-        return value;
+        return firstByte;
       } else if (firstByte < 144) { // fixmap
         length = firstByte & 31;
         value = {};
@@ -380,13 +379,11 @@ class MessagePack {
         return value;
       } else { // fixstr
         length = firstByte & 31;
-        value = iterator.buffer.toString('utf8', iterator.offset, iterator.offset + length);
         iterator.offset += length;
-        return value;
+        return iterator.buffer.toString('utf8', iterator.offset - length, iterator.offset);
       }
     } else if (firstByte > 223) { // negative fixint
-      value = firstByte - 256;
-      return value;
+      return firstByte - 256;
     } else {
       switch (firstByte) {
         case 202: // float 32
@@ -453,31 +450,15 @@ class MessagePack {
           return value;
         case 212: // fixext 1
           if (iterator.buffer.readInt8(iterator.offset++) === 0) { // fixext 1, type = 0, data = ?
-            switch ( iterator.buffer.readInt8(iterator.offset++) ) { 
-              case 0: // undefined, fixext 1, type = 0, data = 0
-                value = undefined;
-                return value;
-              case 1: // NaN, fixext 1, type = 0, data = 1
-                value = NaN;
-                return value;
-              case 2: // +Infinity, fixext 1, type = 0, data = 2
-                value = Infinity;
-                return value;
-              case 3: // -Infinity, fixext 1, type = 0, data = 3
-                value = -Infinity;
-                return value;
-            }
+            return [undefined, NaN, Infinity, -Infinity][iterator.buffer.readInt8(iterator.offset++)]
           }
           break;
         case 192: // nil
-          value = null;
-          return value;
+          return null;
         case 194: // false
-          value = false;
-          return value;
+          return false;
         case 195: // true
-          value = true;
-          return value;
+          return true;
         case 220: // array16
           length = iterator.buffer.readUInt16BE(iterator.offset);
           iterator.offset += 2;
@@ -496,8 +477,8 @@ class MessagePack {
           return value;
         case 222: // map16
           length = iterator.buffer.readUInt16BE(iterator.offset);
-          value = {};
           iterator.offset += 2;
+          value = {};
           if (dictionary.size > 0) {
             for (let i = 0, key; i < length; i++) {
               key = MessagePack.decode(undefined, true);
