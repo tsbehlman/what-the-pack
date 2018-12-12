@@ -48,18 +48,18 @@ class MessagePack {
     return iterator;
   }
   static encode (value, persist) {
-    if (persist !== true) allocator.offset = -1;
+    if (persist !== true) allocator.offset = 0;
     let length = 0;
     switch (typeof value) {
       case 'string':
         if (value.length < 16) {
           for (let i = 0, c = 0, l = value.length; i < l; i++) {
             c = value.charCodeAt(i);
-            if (c < 128) {
+            if (c < 0x80) {
               length += 1;
-            } else if (c < 1280) {
+            } else if (c < 0x500) {
               length += 2;
-            } else if (c < 55296 || c >= 57344) {
+            } else if (c < 0xD800 || c >= 0xE000) {
               length += 3;
             } else {
               i++;
@@ -71,46 +71,46 @@ class MessagePack {
           length = Buffer.byteLength(value);
         }
         if (length < 32) { // < 32, fixstr
-          allocator.buffer[allocator.offset += 1] = length | 160;
+          allocator.buffer[allocator.offset++] = length | 160;
           for (let i = 0, c = 0, l = value.length; i < l; i++) {
             c = value.charCodeAt(i);
             if (c < 0x80) {
-              allocator.buffer[allocator.offset += 1] = c;
+              allocator.buffer[allocator.offset++] = c;
             } else if (c < 0x500) {
-              allocator.buffer[allocator.offset += 1] = 0xC0 | c >> 6        ;
-              allocator.buffer[allocator.offset += 1] = 0x80 | c       & 0x3F;
+              allocator.buffer[allocator.offset++] = 0xC0 | c >> 6        ;
+              allocator.buffer[allocator.offset++] = 0x80 | c       & 0x3F;
             } else if (c < 0xD800 || c >= 0xE000) {
-              allocator.buffer[allocator.offset += 1] = 0xE0 | c >> 12       ;
-              allocator.buffer[allocator.offset += 1] = 0x80 | c >> 6  & 0x3F;
-              allocator.buffer[allocator.offset += 1] = 0x80 | c       & 0x3F;
+              allocator.buffer[allocator.offset++] = 0xE0 | c >> 12       ;
+              allocator.buffer[allocator.offset++] = 0x80 | c >> 6  & 0x3F;
+              allocator.buffer[allocator.offset++] = 0x80 | c       & 0x3F;
             } else {
               i++;
               c = 0x10000 ^ (((c & 0x3FF) << 10) | (value.charCodeAt(i) & 0x3FF));
-              allocator.buffer[allocator.offset += 1] = 0xF0 | c >> 18       ;
-              allocator.buffer[allocator.offset += 1] = 0x80 | c >> 12 & 0x3F;
-              allocator.buffer[allocator.offset += 1] = 0x80 | c >> 6  & 0x3F;
-              allocator.buffer[allocator.offset += 1] = 0x80 | c       & 0x3F;
+              allocator.buffer[allocator.offset++] = 0xF0 | c >> 18       ;
+              allocator.buffer[allocator.offset++] = 0x80 | c >> 12 & 0x3F;
+              allocator.buffer[allocator.offset++] = 0x80 | c >> 6  & 0x3F;
+              allocator.buffer[allocator.offset++] = 0x80 | c       & 0x3F;
             }
           }
         } else if (length < 256) { // str8
-          allocator.buffer[allocator.offset += 1] = 217;
-          allocator.buffer[allocator.offset += 1] = length;
-          allocator.buffer.write(value, allocator.offset += 1, length, 'utf8');
-          allocator.offset += length - 1;
+          allocator.buffer[allocator.offset++] = 217;
+          allocator.buffer[allocator.offset++] = length;
+          allocator.buffer.write(value, allocator.offset, length, 'utf8');
+          allocator.offset += length;
         } else if (length < 65536) { // str16
-          allocator.buffer[allocator.offset += 1] = 218;
-          allocator.buffer[allocator.offset += 1] = length >> 8;
-          allocator.buffer[allocator.offset += 1] = length;
-          allocator.buffer.write(value, allocator.offset += 1, length, 'utf8');
-          allocator.offset += length - 1;
+          allocator.buffer[allocator.offset++] = 218;
+          allocator.buffer[allocator.offset++] = length >> 8;
+          allocator.buffer[allocator.offset++] = length;
+          allocator.buffer.write(value, allocator.offset, length, 'utf8');
+          allocator.offset += length;
         } else if (length < 4294967296) { // str32
-          allocator.buffer[allocator.offset += 1] = 219;
-          allocator.buffer[allocator.offset += 1] = length >> 24;
-          allocator.buffer[allocator.offset += 1] = length >> 16;
-          allocator.buffer[allocator.offset += 1] = length >> 8;
-          allocator.buffer[allocator.offset += 1] = length;
-          allocator.buffer.write(value, allocator.offset += 1, length, 'utf8');
-          allocator.offset += length - 1;
+          allocator.buffer[allocator.offset++] = 219;
+          allocator.buffer[allocator.offset++] = length >> 24;
+          allocator.buffer[allocator.offset++] = length >> 16;
+          allocator.buffer[allocator.offset++] = length >> 8;
+          allocator.buffer[allocator.offset++] = length;
+          allocator.buffer.write(value, allocator.offset, length, 'utf8');
+          allocator.offset += length;
         } else {
           throw Error('Max supported string length (4294967296) exceeded, encoding failure.');
         }
@@ -118,128 +118,128 @@ class MessagePack {
       case 'number':
         if (!Number.isFinite(value)) {
           if (Number.isNaN(value)) { // NaN, fixext 1, type = 0, data = 1
-            allocator.buffer[allocator.offset += 1] = 212;
-            allocator.buffer[allocator.offset += 1] = 0;
-            allocator.buffer[allocator.offset += 1] = 1;
+            allocator.buffer[allocator.offset++] = 212;
+            allocator.buffer[allocator.offset++] = 0;
+            allocator.buffer[allocator.offset++] = 1;
             break;
           }
           if (value === Infinity) { // +Infinity, fixext 1, type = 0, data = 2
-            allocator.buffer[allocator.offset += 1] = 212;
-            allocator.buffer[allocator.offset += 1] = 0;
-            allocator.buffer[allocator.offset += 1] = 2;
+            allocator.buffer[allocator.offset++] = 212;
+            allocator.buffer[allocator.offset++] = 0;
+            allocator.buffer[allocator.offset++] = 2;
             break;
           }
           if (value === -Infinity) { // -Infinity, fixext 1, type = 0, data = 3
-            allocator.buffer[allocator.offset += 1] = 212;
-            allocator.buffer[allocator.offset += 1] = 0;
-            allocator.buffer[allocator.offset += 1] = 3;
+            allocator.buffer[allocator.offset++] = 212;
+            allocator.buffer[allocator.offset++] = 0;
+            allocator.buffer[allocator.offset++] = 3;
             break;
           }
         }
         if (Math.floor(value) !== value) {
           if (Math.fround(value) === value) {
-            allocator.buffer[allocator.offset += 1] = 202;
-            allocator.buffer.writeFloatBE(value, allocator.offset += 1);
-            allocator.offset += 3;
+            allocator.buffer[allocator.offset++] = 202;
+            allocator.buffer.writeFloatBE(value, allocator.offset);
+            allocator.offset += 4;
             break;
           } else {
-            allocator.buffer[allocator.offset += 1] = 203;
-            allocator.buffer.writeDoubleBE(value, allocator.offset += 1);
-            allocator.offset += 7;
+            allocator.buffer[allocator.offset++] = 203;
+            allocator.buffer.writeDoubleBE(value, allocator.offset);
+            allocator.offset += 8;
             break;
           }
         }
         if (value >= 0) {
           if (value < 128) { // positive fixint
-            allocator.buffer[allocator.offset += 1] = value;
+            allocator.buffer[allocator.offset++] = value;
             break;
           }
           if (value < 256) { // uint 8
-            allocator.buffer[allocator.offset += 1] = 204;
-            allocator.buffer[allocator.offset += 1] = value;
+            allocator.buffer[allocator.offset++] = 204;
+            allocator.buffer[allocator.offset++] = value;
             break;
           }
           if (value < 65536) {  // uint 16
-            allocator.buffer[allocator.offset += 1] = 205;
-            allocator.buffer[allocator.offset += 1] = value >> 8;
-            allocator.buffer[allocator.offset += 1] = value;
+            allocator.buffer[allocator.offset++] = 205;
+            allocator.buffer[allocator.offset++] = value >> 8;
+            allocator.buffer[allocator.offset++] = value;
             break;
           }
           if (value < 4294967296) { // uint 32
-            allocator.buffer[allocator.offset += 1] = 206;
-            allocator.buffer[allocator.offset += 1] = value >> 24;
-            allocator.buffer[allocator.offset += 1] = value >> 16;
-            allocator.buffer[allocator.offset += 1] = value >> 8;
-            allocator.buffer[allocator.offset += 1] = value;
+            allocator.buffer[allocator.offset++] = 206;
+            allocator.buffer[allocator.offset++] = value >> 24;
+            allocator.buffer[allocator.offset++] = value >> 16;
+            allocator.buffer[allocator.offset++] = value >> 8;
+            allocator.buffer[allocator.offset++] = value;
             break;
           }
           // uint 64
           let hi = (value / 4294967296) >> 0, lo = value >>> 0;
-          allocator.buffer[allocator.offset += 1] = 207;
-          allocator.buffer[allocator.offset += 1] = hi >> 24;
-          allocator.buffer[allocator.offset += 1] = hi >> 16;
-          allocator.buffer[allocator.offset += 1] = hi >> 8;
-          allocator.buffer[allocator.offset += 1] = hi;
-          allocator.buffer[allocator.offset += 1] = lo >> 24;
-          allocator.buffer[allocator.offset += 1] = lo >> 16;
-          allocator.buffer[allocator.offset += 1] = lo >> 8;
-          allocator.buffer[allocator.offset += 1] = lo;
+          allocator.buffer[allocator.offset++] = 207;
+          allocator.buffer[allocator.offset++] = hi >> 24;
+          allocator.buffer[allocator.offset++] = hi >> 16;
+          allocator.buffer[allocator.offset++] = hi >> 8;
+          allocator.buffer[allocator.offset++] = hi;
+          allocator.buffer[allocator.offset++] = lo >> 24;
+          allocator.buffer[allocator.offset++] = lo >> 16;
+          allocator.buffer[allocator.offset++] = lo >> 8;
+          allocator.buffer[allocator.offset++] = lo;
         } else {
           if (value >= -32) { // negative fixint
-            allocator.buffer[allocator.offset += 1] = value;
+            allocator.buffer[allocator.offset++] = value;
             break;
           }
           if (value >= -128) { // int 8
-            allocator.buffer[allocator.offset += 1] = 208;
-            allocator.buffer[allocator.offset += 1] = value;
+            allocator.buffer[allocator.offset++] = 208;
+            allocator.buffer[allocator.offset++] = value;
             break;
           }
           if (value >= -12800) { // int 16
-            allocator.buffer[allocator.offset += 1] = 209;
-            allocator.buffer[allocator.offset += 1] = value >> 8;
-            allocator.buffer[allocator.offset += 1] = value;
+            allocator.buffer[allocator.offset++] = 209;
+            allocator.buffer[allocator.offset++] = value >> 8;
+            allocator.buffer[allocator.offset++] = value;
             break;
           }
           if (value >= -128000000) { // int 32
-            allocator.buffer[allocator.offset += 1] = 210;
-            allocator.buffer[allocator.offset += 1] = value >> 24;
-            allocator.buffer[allocator.offset += 1] = value >> 16;
-            allocator.buffer[allocator.offset += 1] = value >> 8;
-            allocator.buffer[allocator.offset += 1] = value;
+            allocator.buffer[allocator.offset++] = 210;
+            allocator.buffer[allocator.offset++] = value >> 24;
+            allocator.buffer[allocator.offset++] = value >> 16;
+            allocator.buffer[allocator.offset++] = value >> 8;
+            allocator.buffer[allocator.offset++] = value;
             break;
           }
           // int 64
           let hi = Math.floor(value / 4294967296), lo = value >>> 0;
-          allocator.buffer[allocator.offset += 1] = 211;
-          allocator.buffer[allocator.offset += 1] = hi >> 24;
-          allocator.buffer[allocator.offset += 1] = hi >> 16;
-          allocator.buffer[allocator.offset += 1] = hi >> 8;
-          allocator.buffer[allocator.offset += 1] = hi;
-          allocator.buffer[allocator.offset += 1] = lo >> 24;
-          allocator.buffer[allocator.offset += 1] = lo >> 16;
-          allocator.buffer[allocator.offset += 1] = lo >> 8;
-          allocator.buffer[allocator.offset += 1] = lo;
+          allocator.buffer[allocator.offset++] = 211;
+          allocator.buffer[allocator.offset++] = hi >> 24;
+          allocator.buffer[allocator.offset++] = hi >> 16;
+          allocator.buffer[allocator.offset++] = hi >> 8;
+          allocator.buffer[allocator.offset++] = hi;
+          allocator.buffer[allocator.offset++] = lo >> 24;
+          allocator.buffer[allocator.offset++] = lo >> 16;
+          allocator.buffer[allocator.offset++] = lo >> 8;
+          allocator.buffer[allocator.offset++] = lo;
         }
         break;
       case 'object':
         if (value === null) { // null
-          allocator.buffer[allocator.offset += 1] = 192;
+          allocator.buffer[allocator.offset++] = 192;
           break;
         }
         if (Array.isArray(value)) {
           length = value.length;
           if (length < 16) { // fixarray
-            allocator.buffer[allocator.offset += 1] = length | 144;
+            allocator.buffer[allocator.offset++] = length | 144;
           } else if (length < 65536) { // array 16
-            allocator.buffer[allocator.offset += 1] = 220;
-            allocator.buffer[allocator.offset += 1] = length >> 8;
-            allocator.buffer[allocator.offset += 1] = length;
+            allocator.buffer[allocator.offset++] = 220;
+            allocator.buffer[allocator.offset++] = length >> 8;
+            allocator.buffer[allocator.offset++] = length;
           } else if (length < 4294967296) { // array 32
-            allocator.buffer[allocator.offset += 1] = 221;
-            allocator.buffer[allocator.offset += 1] = length >> 24;
-            allocator.buffer[allocator.offset += 1] = length >> 16;
-            allocator.buffer[allocator.offset += 1] = length >> 8;
-            allocator.buffer[allocator.offset += 1] = length;
+            allocator.buffer[allocator.offset++] = 221;
+            allocator.buffer[allocator.offset++] = length >> 24;
+            allocator.buffer[allocator.offset++] = length >> 16;
+            allocator.buffer[allocator.offset++] = length >> 8;
+            allocator.buffer[allocator.offset++] = length;
           } else {
             throw new Error('Array too large');
           }
@@ -265,30 +265,30 @@ class MessagePack {
         if (value instanceof Buffer) { // typedarrays and buffer
           length = value.length;
           if (length < 256) { // bin8
-            allocator.buffer[allocator.offset += 1] = 196;
-            allocator.buffer[allocator.offset += 1] = length;
+            allocator.buffer[allocator.offset++] = 196;
+            allocator.buffer[allocator.offset++] = length;
             if (length > 32) {
-              value.copy(allocator.buffer, allocator.offset += 1, 0, length);
-              allocator.offset += length - 1;
+              value.copy(allocator.buffer, allocator.offset, 0, length);
+              allocator.offset += length;
             } else {
               for (let i = 0; i < length; i++) {
-                allocator.buffer[allocator.offset += 1] = value[i];
+                allocator.buffer[allocator.offset++] = value[i];
               }
             }
           } else if (length < 65536) { // bin16
-            allocator.buffer[allocator.offset += 1] = 197;
-            allocator.buffer[allocator.offset += 1] = length >> 8;
-            allocator.buffer[allocator.offset += 1] = length;
-            value.copy(allocator.buffer, allocator.offset += 1, 0, length);
-            allocator.offset += length - 1;
+            allocator.buffer[allocator.offset++] = 197;
+            allocator.buffer[allocator.offset++] = length >> 8;
+            allocator.buffer[allocator.offset++] = length;
+            value.copy(allocator.buffer, allocator.offset, 0, length);
+            allocator.offset += length;
           } else if (length < 4294967296) { // bin32
-            allocator.buffer[allocator.offset += 1] = 198;
-            allocator.buffer[allocator.offset += 1] = length >> 24;
-            allocator.buffer[allocator.offset += 1] = length >> 16;
-            allocator.buffer[allocator.offset += 1] = length >> 8;
-            allocator.buffer[allocator.offset += 1] = length;
-            value.copy(allocator.buffer, allocator.offset += 1, 0, length);
-            allocator.offset += length - 1;
+            allocator.buffer[allocator.offset++] = 198;
+            allocator.buffer[allocator.offset++] = length >> 24;
+            allocator.buffer[allocator.offset++] = length >> 16;
+            allocator.buffer[allocator.offset++] = length >> 8;
+            allocator.buffer[allocator.offset++] = length;
+            value.copy(allocator.buffer, allocator.offset, 0, length);
+            allocator.offset += length;
           } else {
             throw Error('Max supported buffer length (4294967296) exceeded, encoding failure.');
           }
@@ -297,17 +297,17 @@ class MessagePack {
           let keys = Object.keys(value);
           length = keys.length;
           if (length < 16) { // fixmap
-            allocator.buffer[allocator.offset += 1] = length | 128;
+            allocator.buffer[allocator.offset++] = length | 128;
           } else if (length < 65536) { // map16
-            allocator.buffer[allocator.offset += 1] = 222;
-            allocator.buffer[allocator.offset += 1] = length >> 8;
-            allocator.buffer[allocator.offset += 1] = length;
+            allocator.buffer[allocator.offset++] = 222;
+            allocator.buffer[allocator.offset++] = length >> 8;
+            allocator.buffer[allocator.offset++] = length;
           } else if (length < 4294967296) { // map32
-            allocator.buffer[allocator.offset += 1] = 223;
-            allocator.buffer[allocator.offset += 1] = length >> 24;
-            allocator.buffer[allocator.offset += 1] = length >> 16;
-            allocator.buffer[allocator.offset += 1] = length >> 8;
-            allocator.buffer[allocator.offset += 1] = length;
+            allocator.buffer[allocator.offset++] = 223;
+            allocator.buffer[allocator.offset++] = length >> 24;
+            allocator.buffer[allocator.offset++] = length >> 16;
+            allocator.buffer[allocator.offset++] = length >> 8;
+            allocator.buffer[allocator.offset++] = length;
           } else {
             throw new Error('Object too large');
           }
@@ -327,15 +327,15 @@ class MessagePack {
       default:
         switch (value) {
           case true:  // true
-            allocator.buffer[allocator.offset += 1] =  195;
+            allocator.buffer[allocator.offset++] =  195;
             break;
           case false: // false
-            allocator.buffer[allocator.offset += 1] =  194;
+            allocator.buffer[allocator.offset++] =  194;
             break;
           case undefined: // undefined, fixext 1, type = 0, data = 0
-            allocator.buffer[allocator.offset += 1] = 212;
-            allocator.buffer[allocator.offset += 1] = 0;
-            allocator.buffer[allocator.offset += 1] = 0;
+            allocator.buffer[allocator.offset++] = 212;
+            allocator.buffer[allocator.offset++] = 0;
+            allocator.buffer[allocator.offset++] = 0;
             break;
           default:
             throw Error('Error encoding value.');
@@ -352,16 +352,14 @@ class MessagePack {
       iterator.buffer = buffer;
       iterator.offset = 0;
     }
-    const firstByte = iterator.buffer[iterator.offset];
+    const firstByte = iterator.buffer[iterator.offset++];
     if (firstByte < 192) {
       if (firstByte < 128) { // positive fixint
         value = firstByte;
-        iterator.offset += 1;
         return value;
       } else if (firstByte < 144) { // fixmap
         length = firstByte & 31;
         value = {};
-        iterator.offset += 1;
         if (dictionary.size > 0) {
           for (let i = 0, key; i < length; i++) {
             key = MessagePack.decode(undefined, true);
@@ -375,7 +373,6 @@ class MessagePack {
         return value;
       } else if (firstByte < 160) { // fixarray
         length = firstByte & 15;
-        iterator.offset += 1;
         value = new Array(length);
         for (let i = 0; i < length; i++) {
           value[i] = MessagePack.decode(undefined, true);
@@ -383,111 +380,106 @@ class MessagePack {
         return value;
       } else { // fixstr
         length = firstByte & 31;
-        iterator.offset += 1;
         value = iterator.buffer.toString('utf8', iterator.offset, iterator.offset + length);
         iterator.offset += length;
         return value;
       }
     } else if (firstByte > 223) { // negative fixint
       value = firstByte - 256;
-      iterator.offset += 1;
       return value;
     } else {
       switch (firstByte) {
         case 202: // float 32
-          value = iterator.buffer.readFloatBE(iterator.offset += 1);
+          value = iterator.buffer.readFloatBE(iterator.offset);
           iterator.offset += 4;
           return value;
         case 203: // float 64
-          value = iterator.buffer.readDoubleBE(iterator.offset += 1);
+          value = iterator.buffer.readDoubleBE(iterator.offset);
           iterator.offset += 8;
           return value;
         case 204: // uint 8
-          value = iterator.buffer.readUInt8(iterator.offset += 1);
+          value = iterator.buffer.readUInt8(iterator.offset);
           iterator.offset += 1;
           return value;
         case 205: // uint 16
-          value = iterator.buffer.readUInt16BE(iterator.offset += 1);
+          value = iterator.buffer.readUInt16BE(iterator.offset);
           iterator.offset += 2;
           return value;
         case 206: // uint 32
-          value = iterator.buffer.readUInt32BE(iterator.offset += 1);
+          value = iterator.buffer.readUInt32BE(iterator.offset);
           iterator.offset += 4;
           return value;
         case 207: // uint 64
-          value = ( iterator.buffer.readUInt32BE(iterator.offset += 1) * 4294967296 ) + iterator.buffer.readUInt32BE(iterator.offset += 4);
+          value = iterator.buffer.readUInt32BE(iterator.offset) * 4294967296;
+          iterator.offset += 4;
+          value += iterator.buffer.readUInt32BE(iterator.offset);
           iterator.offset += 4;
           return value;
         case 208: // int 8
-          value = iterator.buffer.readInt8(iterator.offset += 1);
+          value = iterator.buffer.readInt8(iterator.offset);
           iterator.offset += 1;
           return value;
         case 209: // int 16
-          value = iterator.buffer.readInt16BE(iterator.offset += 1);
+          value = iterator.buffer.readInt16BE(iterator.offset);
           iterator.offset += 2;
           return value;
         case 210: // int 32
-          value = iterator.buffer.readInt32BE(iterator.offset += 1);
+          value = iterator.buffer.readInt32BE(iterator.offset);
           iterator.offset += 4;
           return value;
         case 211: // int 64
-          value = ( iterator.buffer.readInt32BE(iterator.offset += 1) * 4294967296 ) + iterator.buffer.readUInt32BE(iterator.offset += 4);
+          value = iterator.buffer.readInt32BE(iterator.offset) * 4294967296;
+          iterator.offset += 4;
+          value += iterator.buffer.readUInt32BE(iterator.offset);
           iterator.offset += 4;
           return value;
         case 217: // str 8
-          length = iterator.buffer.readUInt8(iterator.offset += 1);
+          length = iterator.buffer.readUInt8(iterator.offset);
           iterator.offset += 1;
           value = iterator.buffer.toString('utf8', iterator.offset, iterator.offset + length);
           iterator.offset += length;
           return value;
         case 218: // str 16
-          length = iterator.buffer.readUInt16BE(iterator.offset += 1);
+          length = iterator.buffer.readUInt16BE(iterator.offset);
           iterator.offset += 2;
           value = iterator.buffer.toString('utf8', iterator.offset, iterator.offset + length);
           iterator.offset += length;
           return value;
         case 219: // str 32
-          length = iterator.buffer.readUInt32BE(iterator.offset += 1);
+          length = iterator.buffer.readUInt32BE(iterator.offset);
           iterator.offset += 4;
           value = iterator.buffer.toString('utf8', iterator.offset, iterator.offset + length);
           iterator.offset += length;
           return value;
         case 212: // fixext 1
-          if (iterator.buffer.readInt8(iterator.offset += 1) === 0) { // fixext 1, type = 0, data = ?
-            switch ( iterator.buffer.readInt8(iterator.offset += 1) ) { 
+          if (iterator.buffer.readInt8(iterator.offset++) === 0) { // fixext 1, type = 0, data = ?
+            switch ( iterator.buffer.readInt8(iterator.offset++) ) { 
               case 0: // undefined, fixext 1, type = 0, data = 0
                 value = undefined;
-                iterator.offset += 1;
                 return value;
               case 1: // NaN, fixext 1, type = 0, data = 1
                 value = NaN;
-                iterator.offset += 1;
                 return value;
               case 2: // +Infinity, fixext 1, type = 0, data = 2
                 value = Infinity;
-                iterator.offset += 1;
                 return value;
               case 3: // -Infinity, fixext 1, type = 0, data = 3
                 value = -Infinity;
-                iterator.offset += 1;
                 return value;
             }
           }
           break;
         case 192: // nil
           value = null;
-          iterator.offset += 1;
           return value;
         case 194: // false
           value = false;
-          iterator.offset += 1;
           return value;
         case 195: // true
           value = true;
-          iterator.offset += 1;
           return value;
         case 220: // array16
-          length = iterator.buffer.readUInt16BE(iterator.offset += 1);
+          length = iterator.buffer.readUInt16BE(iterator.offset);
           iterator.offset += 2;
           value = new Array(length);
           for (let i = 0; i < length; i++) {
@@ -495,7 +487,7 @@ class MessagePack {
           }
           return value;
         case 221: // array32
-          length = iterator.buffer.readUInt32BE(iterator.offset += 1);
+          length = iterator.buffer.readUInt32BE(iterator.offset);
           iterator.offset += 4;
           value = new Array(length);
           for (let i = 0; i < length; i++) {
@@ -503,7 +495,7 @@ class MessagePack {
           }
           return value;
         case 222: // map16
-          length = iterator.buffer.readUInt16BE(iterator.offset += 1);
+          length = iterator.buffer.readUInt16BE(iterator.offset);
           value = {};
           iterator.offset += 2;
           if (dictionary.size > 0) {
@@ -518,9 +510,9 @@ class MessagePack {
           }
           return value;
         case 223: // map32
-          length = iterator.buffer.readUInt32BE(iterator.offset += 1);
-          value = {};
+          length = iterator.buffer.readUInt32BE(iterator.offset);
           iterator.offset += 4;
+          value = {};
           if (dictionary.size > 0) {
             for (let i = 0, key; i < length; i++) {
               key = MessagePack.decode(undefined, true);
@@ -533,19 +525,19 @@ class MessagePack {
           }
           return value;
         case 196: // bin8
-          length = iterator.buffer.readUInt8(iterator.offset += 1);
+          length = iterator.buffer.readUInt8(iterator.offset);
           iterator.offset += 1;
           value = iterator.buffer.slice(iterator.offset, iterator.offset + length);
           iterator.offset += length;
           return value;
         case 197: // bin16
-          length = iterator.buffer.readUInt16BE(iterator.offset += 1);
+          length = iterator.buffer.readUInt16BE(iterator.offset);
           iterator.offset += 2;
           value = iterator.buffer.slice(iterator.offset, iterator.offset + length);
           iterator.offset += length;
           return value;
         case 198: // bin32
-          length = iterator.buffer.readUInt32BE(iterator.offset += 1);
+          length = iterator.buffer.readUInt32BE(iterator.offset);
           iterator.offset += 4;
           value = iterator.buffer.slice(iterator.offset, iterator.offset + length);
           iterator.offset += length;
