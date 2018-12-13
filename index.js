@@ -384,27 +384,22 @@ class MessagePack {
     } else if (firstByte > 223) { // negative fixint
       return firstByte - 256;
     } else {
+      const offset = iterator.offset;
       switch (firstByte) {
         case 202: // float 32
-          value = iterator.buffer.readFloatBE(iterator.offset);
           iterator.offset += 4;
-          return value;
+          return iterator.buffer.readFloatBE(offset);
         case 203: // float 64
-          value = iterator.buffer.readDoubleBE(iterator.offset);
           iterator.offset += 8;
-          return value;
+          return iterator.buffer.readDoubleBE(offset);
         case 204: // uint 8
-          value = iterator.buffer.readUInt8(iterator.offset);
-          iterator.offset += 1;
-          return value;
+          return iterator.buffer.readUInt8(iterator.offset++);
         case 205: // uint 16
-          value = iterator.buffer.readUInt16BE(iterator.offset);
           iterator.offset += 2;
-          return value;
+          return iterator.buffer.readUInt16BE(offset);
         case 206: // uint 32
-          value = iterator.buffer.readUInt32BE(iterator.offset);
           iterator.offset += 4;
-          return value;
+          return iterator.buffer.readUInt32BE(offset);
         case 207: // uint 64
           value = iterator.buffer.readUInt32BE(iterator.offset) * 4294967296;
           iterator.offset += 4;
@@ -412,17 +407,13 @@ class MessagePack {
           iterator.offset += 4;
           return value;
         case 208: // int 8
-          value = iterator.buffer.readInt8(iterator.offset);
-          iterator.offset += 1;
-          return value;
+          return iterator.buffer.readInt8(iterator.offset++);
         case 209: // int 16
-          value = iterator.buffer.readInt16BE(iterator.offset);
           iterator.offset += 2;
-          return value;
+          return iterator.buffer.readInt16BE(offset);
         case 210: // int 32
-          value = iterator.buffer.readInt32BE(iterator.offset);
           iterator.offset += 4;
-          return value;
+          return iterator.buffer.readInt32BE(offset);
         case 211: // int 64
           value = iterator.buffer.readInt32BE(iterator.offset) * 4294967296;
           iterator.offset += 4;
@@ -431,25 +422,19 @@ class MessagePack {
           return value;
         case 217: // str 8
           length = iterator.buffer.readUInt8(iterator.offset);
-          iterator.offset += 1;
-          value = iterator.buffer.toString('utf8', iterator.offset, iterator.offset + length);
-          iterator.offset += length;
-          return value;
+          iterator.offset += 1 + length;
+          return iterator.buffer.toString('utf8', iterator.offset - length, iterator.offset);
         case 218: // str 16
           length = iterator.buffer.readUInt16BE(iterator.offset);
-          iterator.offset += 2;
-          value = iterator.buffer.toString('utf8', iterator.offset, iterator.offset + length);
-          iterator.offset += length;
-          return value;
+          iterator.offset += 2 + length;
+          return iterator.buffer.toString('utf8', iterator.offset - length, iterator.offset);
         case 219: // str 32
           length = iterator.buffer.readUInt32BE(iterator.offset);
-          iterator.offset += 4;
-          value = iterator.buffer.toString('utf8', iterator.offset, iterator.offset + length);
-          iterator.offset += length;
-          return value;
+          iterator.offset += 4 + length;
+          return iterator.buffer.toString('utf8', iterator.offset - length, iterator.offset);
         case 212: // fixext 1
           if (iterator.buffer.readInt8(iterator.offset++) === 0) { // fixext 1, type = 0, data = ?
-            return [undefined, NaN, Infinity, -Infinity][iterator.buffer.readInt8(iterator.offset++)]
+            return [undefined, NaN, Infinity, -Infinity][iterator.buffer.readInt8(iterator.offset++)];
           }
           break;
         case 192: // nil
@@ -506,22 +491,16 @@ class MessagePack {
           return value;
         case 196: // bin8
           length = iterator.buffer.readUInt8(iterator.offset);
-          iterator.offset += 1;
-          value = iterator.buffer.slice(iterator.offset, iterator.offset + length);
-          iterator.offset += length;
-          return value;
+          iterator.offset += 1 + length;
+          return iterator.buffer.slice(iterator.offset - length, iterator.offset);
         case 197: // bin16
           length = iterator.buffer.readUInt16BE(iterator.offset);
-          iterator.offset += 2;
-          value = iterator.buffer.slice(iterator.offset, iterator.offset + length);
-          iterator.offset += length;
-          return value;
+          iterator.offset += 2 + length;
+          return iterator.buffer.slice(iterator.offset - length, iterator.offset);
         case 198: // bin32
           length = iterator.buffer.readUInt32BE(iterator.offset);
-          iterator.offset += 4;
-          value = iterator.buffer.slice(iterator.offset, iterator.offset + length);
-          iterator.offset += length;
-          return value;
+          iterator.offset += 4 + length;
+          return iterator.buffer.slice(iterator.offset - length, iterator.offset);
       }
       throw Error('Error decoding value.');
     }
