@@ -1,11 +1,11 @@
 class Allocator {
   constructor (length) {
     this.buffer = Buffer.allocUnsafe(length || Buffer.poolSize).fill(0);
-    this.offset = -1;
+    this.offset = 0;
   }
   copy () {
-    const latest = Buffer.allocUnsafe(this.offset + 1).fill(0);
-    this.buffer.copy(latest, 0, 0, this.offset + 1);
+    const latest = Buffer.allocUnsafe(this.offset).fill(0);
+    this.buffer.copy(latest, 0, 0, this.offset);
     return latest;
   }
 }
