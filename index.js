@@ -324,22 +324,21 @@ class MessagePack {
           }
         }
         break;
-      default:
-        switch (value) {
-          case true:  // true
-            allocator.buffer[allocator.offset++] =  195;
-            break;
-          case false: // false
-            allocator.buffer[allocator.offset++] =  194;
-            break;
-          case undefined: // undefined, fixext 1, type = 0, data = 0
-            allocator.buffer[allocator.offset++] = 212;
-            allocator.buffer[allocator.offset++] = 0;
-            allocator.buffer[allocator.offset++] = 0;
-            break;
-          default:
-            throw Error('Error encoding value.');
+      case 'boolean':
+        if (value) {
+          allocator.buffer[allocator.offset++] = 195;
         }
+        else {
+          allocator.buffer[allocator.offset++] = 194;
+        }
+        break;
+      case 'undefined':
+        allocator.buffer[allocator.offset++] = 212;
+        allocator.buffer[allocator.offset++] = 0;
+        allocator.buffer[allocator.offset++] = 0;
+        break;
+      default:
+        throw Error('Error encoding value.');
     }
     if (persist !== true) {
       return allocator.copy();
