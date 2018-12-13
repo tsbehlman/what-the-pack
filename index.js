@@ -20,20 +20,20 @@ class Iterator {
 let allocator = new Allocator();
 const iterator = new Iterator();
 const dictionary = new Map();
-let dictionaryOffset = -33;
-/**
- * Why -33:
- * - This allows us to use the negative (-32 to -1) and positive fixint range (0 to 127)
- * - So instead of encoding the whole key string, we only encode a single byte
- * - That's (32 + 128) = 160 of your first entries being encoded in a single damn byte
- */
+
 class MessagePack {
-  static register (...args) {
-    args.forEach(item => {
-      dictionaryOffset += 1;
-      dictionary.set(item, dictionaryOffset);
-      dictionary.set(dictionaryOffset, item);
-    });
+  static register (...keys) {
+    let keyIndex = ( dictionary.size >>> 1 ) - 32;
+    /* 
+     * Why - 32:
+     * - This allows us to make use of the full fixint range (-32 to 127)
+     * - That's 160 of your first keys being encoded in one byte instead of the whole string
+     */
+    for (const key of keys) {
+      dictionary.set(key, keyIndex);
+      dictionary.set(keyIndex, key);
+      keyIndex++;
+    }
   }
   static get dictionary () {
     return dictionary;
