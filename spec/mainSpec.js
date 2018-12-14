@@ -1,11 +1,8 @@
-const wtp = require('../index');
-
-/**
- * Reallocate our temporary buffer from 8KB to 1GB:
- */
-wtp.reallocate(2 ** 30);
+const MessagePack = require('../index');
 
 describe('what-the-pack', () => {
+  const wtp = new MessagePack(2 ** 30);
+  
   const exactMatchCases = [
     [ "fixstr", [
       "",
@@ -191,7 +188,7 @@ describe('what-the-pack', () => {
   });
 });
 
-function objectTests() {
+function objectTests(wtp) {
   it('tiny object', () => {
     const value = {
       foo: 1,
@@ -259,8 +256,13 @@ function objectTests() {
   });
 }
 
-describe( "what-the-pack object", objectTests );
+describe( "what-the-pack object", () => {
+  const wtp = new MessagePack(2 ** 30);
+  objectTests(wtp);
+} );
+
 describe( "what-the-pack object with dictionary", () => {
+  const wtp = new MessagePack(2 ** 30);
   wtp.register( "foo", "bar", "foobar", "unsigned", "signed", "str", "array", "nil", "map", "bool", "both" );
-  objectTests();
+  objectTests(wtp);
 } );

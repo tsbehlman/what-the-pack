@@ -1,16 +1,9 @@
-/* eslint-disable no-console */
+const { Suite } = require('benchmark');
+const suite = new Suite();
 
-const Benchmark = require('benchmark');
-const suite = new Benchmark.Suite;
-
-const wtp = require('./index');
+const wtp = new (require('./index'))(2 ** 22);
 
 const notepack = require('notepack.io');
-
-/**
- * Reallocate our temporary buffer from 8KB to 4MB:
- */
-wtp.reallocate(2 ** 22);
 
 const tiny = {
   foo: 1,
@@ -68,10 +61,10 @@ for (var i = 0; i < 1024; i++) {
 
 const encoded = {
   wtp: {
-    tiny: wtp.encode(tiny),
-    small: wtp.encode(small),
-    medium: wtp.encode(medium),
-    large: wtp.encode(large)
+    tiny: Buffer.allocUnsafe(wtp.buffer.length).fill(0),
+    small: Buffer.allocUnsafe(wtp.buffer.length).fill(0),
+    medium: Buffer.allocUnsafe(wtp.buffer.length).fill(0),
+    large: Buffer.allocUnsafe(wtp.buffer.length).fill(0)
   },
   notepack: {
     tiny: notepack.encode(tiny),
@@ -80,6 +73,11 @@ const encoded = {
     large: notepack.encode(large)
   }
 };
+
+wtp.encode(tiny).copy(encoded.wtp.tiny);
+wtp.encode(small).copy(encoded.wtp.small);
+wtp.encode(medium).copy(encoded.wtp.medium);
+wtp.encode(large).copy(encoded.wtp.large);
 
 suite
   .add('what-the-pack encode tiny', () => {
@@ -133,4 +131,4 @@ suite
   .on('cycle', (event) => {
     console.log(String(event.target));
   })
-  .run({ 'async': true });
+  .run({ 'async': false });
