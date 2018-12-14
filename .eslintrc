@@ -1,0 +1,43 @@
+{
+	"parserOptions": {
+		"ecmaVersion": 2018
+	},
+	"env": {
+		"node": true,
+		"es6": true
+	},
+	"globals": {
+		"expect": false,
+		"describe": false,
+		"it": false
+	},
+	"extends": "eslint:recommended",
+	"rules": {
+		"indent": [ "error", "tab" ],
+		"brace-style": [ "error", "stroustrup" ],
+		"curly": [ "error", "all" ],
+		"one-var": [ "error", "never" ],
+		"space-infix-ops": "error",
+		"comma-spacing": "error",
+		"space-before-blocks": "error",
+		"space-in-parens": [ "error", "always" ],
+		"array-bracket-spacing": [ "error", "always" ],
+		"computed-property-spacing": [ "error", "always" ],
+		"object-curly-spacing": [ "error", "always" ],
+		"space-before-function-paren": [ "error", "never" ],
+		"quotes": [ "error", "double" ],
+		"comma-dangle": [ "error", "never" ],
+		"eqeqeq": "error",
+		"no-duplicate-case": "error",
+		"no-extra-semi": "error",
+		"no-redeclare": "error",
+		"no-unused-expressions": "error",
+		"no-unused-vars": [ "error", { "args": "none" } ],
+		"func-call-spacing": [ "error", "never" ],
+		"no-trailing-spaces": [ "error", { "skipBlankLines": true, "ignoreComments": true } ],
+		"padded-blocks": [ "error", "never" ],
+		"semi": "error",
+		"prefer-const": "error",
+		"no-var": "error"
+	}
+}
